@@ -1,93 +1,89 @@
 import { useState } from "react";
+import saladImg from "./assets/salad.png";
+import "./index.css";
 
-const API_URL = "https://dietbite-pro-backend-1.onrender.com/api/chat";
-
-export default function App() {
-  const [messages, setMessages] = useState([]);
+function App() {
   const [message, setMessage] = useState("");
+  const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function sendMessage() {
-    if (!message.trim() || loading) return;
+  const sendMessage = async () => {
+    if (!message.trim()) return;
 
-    const userMessage = message;
-    setMessage("");
-
-    setMessages((prev) => [...prev, { role: "user", text: userMessage }]);
     setLoading(true);
+    setReply("");
 
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userMessage,
-          mode: "chat",
-        }),
-      });
+      const res = await fetch(
+        "https://dietbite-pro-backend-1.onrender.com/api/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message,
+            mode: "chat",
+          }),
+        }
+      );
 
       const data = await res.json();
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: data.reply || "No response received." },
-      ]);
+      setReply(data.reply || "No response received.");
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text:
-            "⚠️ Unable to reach DietBite Pro servers. Please try again later.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
+      setReply("⚠️ Unable to reach DietBite Pro service.");
     }
-  }
+
+    setLoading(false);
+  };
 
   return (
-    <div className="appWrap">
-      <div className="card">
-        <div className="header">
-          <div>
-            <h1 className="title">🥗 DietBite Pro</h1>
-            <p className="subtitle">
-              Therapeutic diet guidance • Hospital-ready • Not medical advice
-            </p>
-          </div>
-          <p className="subtitle">Powered by DietBite Pro AI</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 animate-fade-in">
 
-        <div className="chatBox">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`bubble ${m.role === "user" ? "user" : "bot"}`}
-            >
-              {m.text}
-            </div>
-          ))}
-          {loading && <div className="loading">Thinking…</div>}
-        </div>
-
-        <div className="inputRow">
-          <input
-            className="input"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask about renal, diabetic, cardiac, texture-modified diets…"
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        {/* HERO IMAGE (FOR MOBILE APPS) */}
+        <div className="flex justify-center mb-4">
+          <img
+            src={saladImg}
+            alt="Healthy salad"
+            className="w-40 h-40 object-contain animate-float"
           />
-          <button
-            className="button"
-            onClick={sendMessage}
-            disabled={loading || !message.trim()}
-          >
-            {loading ? "Sending…" : "Send"}
-          </button>
         </div>
+
+        {/* TITLE */}
+        <h1 className="text-2xl font-bold text-center text-green-700">
+          DietBite Pro
+        </h1>
+
+        <p className="text-center text-gray-500 mb-4">
+          Clinical nutrition guidance made simple
+        </p>
+
+        {/* INPUT */}
+        <textarea
+          className="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
+          rows="3"
+          placeholder="Ask about renal, diabetic, cardiac diets..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+
+        {/* BUTTON */}
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          className="w-full mt-4 bg-green-600 text-white py-2 rounded-xl font-semibold hover:bg-green-700 transition-all duration-200 disabled:opacity-60"
+        >
+          {loading ? "Thinking..." : "Ask DietBite"}
+        </button>
+
+        {/* RESPONSE */}
+        {reply && (
+          <div className="mt-4 p-3 bg-green-50 rounded-xl text-sm text-gray-700 animate-slide-up">
+            {reply}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+export default App;
