@@ -20,25 +20,51 @@ workflows:
         script: |
           npm run build
 
-      - name: Sync Capacitor iOS
+      # Ensure iOS exists, then sync (generates/updates native files, including Podfile in most setups)
+      - name: Ensure iOS platform + Sync Capacitor iOS
         script: |
+          if [ ! -d "ios" ]; then
+            echo "ios/ folder missing -> adding iOS platform"
+            npx cap add ios
+          fi
+
           npx cap sync ios
 
-      - name: Install CocoaPods
+      # Debug: show where the Podfile is (helps if your project layout is different)
+      - name: Debug - locate Podfile
         script: |
-          cd ios/App
-          pod install
+          echo "Searching for Podfile under ios/ ..."
+          find ios -maxdepth 5 -name Podfile -print || true
+          echo "Listing ios/ ..."
+          ls -la ios || true
+          echo "Listing ios/App/ ..."
+          ls -la ios/App || true
+
+      # Install CocoaPods wherever the Podfile actually is
+      - name: Install CocoaPods (auto-detect Podfile)
+        script: |
+          if [ -f "ios/App/Podfile" ]; then
+            cd ios/App
+            pod install
+          elif [ -f "ios/Podfile" ]; then
+            cd ios
+            pod install
+          else
+            echo "❌ No Podfile found after cap sync."
+            echo "If you are using Capacitor, ensure ios/ is committed or cap add ios is allowed."
+            exit 1
+          fi
 
       - name: Set up code signing in Xcode project
         script: |
+          cd ios/App
           xcode-project use-profiles
 
-      - name: Set build number (so every upload is unique)
+      - name: Set build number (unique per upload)
         script: |
           cd ios/App
           agvtool new-version -all $BUILD_NUMBER
 
-      # IMPORTANT: uses TARGET to avoid the “no shared schemes” problem
       - name: Build IPA
         script: |
           cd ios/App
@@ -58,3 +84,4 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
+
