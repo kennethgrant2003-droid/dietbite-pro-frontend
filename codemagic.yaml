@@ -20,61 +20,65 @@ workflows:
         script: |
           npm run build
 
-      # Ensure iOS exists, then sync (generates/updates native files, including Podfile in most setups)
-      - name: Ensure iOS platform + Sync Capacitor iOS
+      # Force-create iOS every build so Podfile is generated
+      - name: Recreate iOS platform + Sync
         script: |
-          if [ ! -d "ios" ]; then
-            echo "ios/ folder missing -> adding iOS platform"
-            npx cap add ios
-          fi
-
+          rm -rf ios
+          npx cap add ios
           npx cap sync ios
 
-      # Debug: show where the Podfile is (helps if your project layout is different)
-      - name: Debug - locate Podfile
+      # Debug: show the iOS folder structure (first 200 lines)
+      - name: Debug - show iOS tree
         script: |
-          echo "Searching for Podfile under ios/ ..."
-          find ios -maxdepth 5 -name Podfile -print || true
-          echo "Listing ios/ ..."
-          ls -la ios || true
-          echo "Listing ios/App/ ..."
-          ls -la ios/App || true
+          echo "---- ios/ tree (first 200 lines) ----"
+          find ios -maxdepth 4 -print | head -n 200 || true
+          echo "---- search for Podfile ----"
+          find ios -name Podfile -print || true
 
-      # Install CocoaPods wherever the Podfile actually is
-      - name: Install CocoaPods (auto-detect Podfile)
+      # Run CocoaPods where the Podfile actually is
+      - name: Install CocoaPods
         script: |
-          if [ -f "ios/App/Podfile" ]; then
-            cd ios/App
-            pod install
-          elif [ -f "ios/Podfile" ]; then
-            cd ios
-            pod install
-          else
-            echo "❌ No Podfile found after cap sync."
-            echo "If you are using Capacitor, ensure ios/ is committed or cap add ios is allowed."
+          PODFILE_PATH="$(find ios -name Podfile -maxdepth 5 -print -quit || true)"
+          if [ -z "$PODFILE_PATH" ]; then
+            echo "❌ Podfile not found even after recreating iOS platform."
             exit 1
           fi
 
+          POD_DIR="$(dirname "$PODFILE_PATH")"
+          echo "✅ Found Podfile at: $PODFILE_PATH"
+          cd "$POD_DIR"
+          pod install
+
       - name: Set up code signing in Xcode project
         script: |
-          cd ios/App
+          # Find the xcodeproj directory dynamically (Capacitor layout can vary)
+          XCODEPROJ_DIR="$(find ios -name '*.xcodeproj' -maxdepth 4 -print -quit | xargs -I{} dirname {} )"
+          echo "Using Xcode project dir: $XCODEPROJ_DIR"
+          cd "$XCODEPROJ_DIR"
           xcode-project use-profiles
 
       - name: Set build number (unique per upload)
         script: |
-          cd ios/App
+          XCODEPROJ_DIR="$(find ios -name '*.xcodeproj' -maxdepth 4 -print -quit | xargs -I{} dirname {} )"
+          cd "$XCODEPROJ_DIR"
           agvtool new-version -all $BUILD_NUMBER
 
       - name: Build IPA
         script: |
-          cd ios/App
+          XCODEPROJ_DIR="$(find ios -name '*.xcodeproj' -maxdepth 4 -print -quit | xargs -I{} dirname {} )"
+          cd "$XCODEPROJ_DIR"
+
+          # Build using the project we found
+          PROJECT_NAME="$(find . -maxdepth 1 -name '*.xcodeproj' -print -quit | sed 's|^\./||')"
+          echo "Building project: $PROJECT_NAME"
+
           xcode-project build-ipa \
-            --project "App.xcodeproj" \
+            --project "$PROJECT_NAME" \
             --target "App" \
             --config "Release"
 
     artifacts:
-      - ios/App/build/ios/ipa/*.ipa
+      - ios/**/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
@@ -84,4 +88,5 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
+
 
