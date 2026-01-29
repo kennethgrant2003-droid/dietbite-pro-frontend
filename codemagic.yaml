@@ -1,0 +1,60 @@
+workflows:
+  ios-workflow:
+    name: iOS (Capacitor) Build + TestFlight
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    environment:
+      groups:
+        - appstore_credentials
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.dietbite.pro
+
+    scripts:
+      - name: Install npm deps
+        script: |
+          npm ci
+
+      - name: Build web (Vite)
+        script: |
+          npm run build
+
+      - name: Sync Capacitor iOS
+        script: |
+          npx cap sync ios
+
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install
+
+      - name: Set up code signing in Xcode project
+        script: |
+          xcode-project use-profiles
+
+      - name: Set build number (so every upload is unique)
+        script: |
+          cd ios/App
+          agvtool new-version -all $BUILD_NUMBER
+
+      # IMPORTANT: uses TARGET to avoid the “no shared schemes” problem
+      - name: Build IPA
+        script: |
+          cd ios/App
+          xcode-project build-ipa \
+            --project "App.xcodeproj" \
+            --target "App" \
+            --config "Release"
+
+    artifacts:
+      - ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
