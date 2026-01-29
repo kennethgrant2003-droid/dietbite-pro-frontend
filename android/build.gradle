@@ -1,0 +1,33 @@
+// android/build.gradle (Project-level)
+
+buildscript {
+    ext {
+        buildToolsVersion = "34.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+
+        // ✅ Required for: id("org.jetbrains.kotlin.android")
+        kotlinVersion = "1.9.24"
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // Keep your AGP if it’s already set, but this works for most RN/Capacitor setups
+        classpath("com.android.tools.build:gradle:8.2.2")
+
+        // ✅ Kotlin plugin
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}

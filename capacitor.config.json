@@ -1,0 +1,8 @@
+{
+  "appId": "com.dietbite.pro",
+  "appName": "DietBite Pro",
+  "webDir": "dist",
+  "ios": {
+    "supportsTablet": false
+  }
+}

@@ -1,0 +1,23 @@
+android {
+
+    signingConfigs {
+        debug {
+            // Default Android debug keystore
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+
+        release {
+            // Use debug signing for now so builds don't fail
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+}
